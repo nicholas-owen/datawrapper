@@ -607,35 +607,38 @@ function __(key, scope) {
 
 function fetchJSON(url, method, credentials, body, callback) {
     var opts = {
-        method: method, body: body,
+        method: method,
+        body: body,
         mode: 'cors',
         credentials: credentials
     };
 
-    window.fetch(url, opts)
-    .then(function (res) {
-        if (res.status !== 200) { return new Error(res.statusText); }
-        return res.text();
-    })
-    .then(function (text) {
-        try {
-            return JSON.parse(text);
-        } catch (Error) {
-            // could not parse json, so just return text
-            console.warn('malformed json input', text);
-            return text;
-        }
-    })
-    .then(callback)
-    .catch(function (err) {
-        console.error(err);
-    });
+    var promise = window
+        .fetch(url, opts)
+        .then(function (res) {
+            if (res.status !== 200) { return new Error(res.statusText); }
+            return res.text();
+        })
+        .then(function (text) {
+            try {
+                return JSON.parse(text);
+            } catch (Error) {
+                // could not parse json, so just return text
+                console.warn('malformed json input', text);
+                return text;
+            }
+        })
+        .catch(function (err) {
+            console.error(err);
+        });
+
+    return callback ? promise.then(callback) : promise;
 }
 
 function getJSON(url, credentials, callback) {
     if (arguments.length === 2) {
         callback = credentials;
-        credentials = "include";
+        credentials = 'include';
     }
 
     return fetchJSON(url, 'GET', credentials, null, callback);
