@@ -1,0 +1,139 @@
+<div>
+  <table class="table users">
+    <thead>
+      <tr>
+        <th>
+          <a href="?orderBy=id" on:click="orderBy(event, 'id')">#</a>
+        </th>
+        <th>
+          <a href="?orderBy=name" on:click="orderBy(event, 'name')">
+            {__("Name", "admin-users")}
+          </a>
+        </th>
+        <th>
+          <a href="?orderBy=email" on:click="orderBy(event, 'email')">
+            {__("Sign-In", "admin-users")}
+          </a>
+        </th>
+        <th>{__("Status", "admin-users")}</th>
+        <th>
+          <a href="?orderBy=createdAt" on:click="orderBy(event, 'createdAt')">
+            {__("Created at", "admin-users")}
+          </a>
+        </th>
+        <th class="center">{__("Charts", "admin-users")}</th>
+        <th>{__("Actions", "admin-users")}</th>
+      </tr>
+    </thead>
+
+    {#if loader} {#await loader}
+    <p>Loading</p>
+    {:then answer}
+    <tbody class="users">
+      {#each list as user}
+      <UserAdminRow {user}></UserAdminRow>
+      {/each}
+    </tbody>
+    {:catch error}
+    <p>An error occured while loading user list.</p>
+    {/await} {/if}
+  </table>
+
+  {#if paginationItems.length > 0}
+  <div class="pull-right">
+    <UserAdminPagination
+      pages="{paginationItems}"
+      url="{paginationUrl}"
+      on:navigate="gotoPage(event)"
+      {currentPageNum}
+    ></UserAdminPagination>
+  </div>
+  {/if}
+</div>
+
+<script>
+  import { parse, stringify } from "query-string";
+  import { __ } from "../../shared/l10n";
+  import { getJSON } from "../../shared/utils";
+  import UserAdminRow from "./UserAdminRow.html";
+  import UserAdminPagination from "./UserAdminPagination.html";
+
+  const BASE_URL = "//datawrapper.local:3000/admin/users";
+
+  export default {
+    components: {
+      UserAdminRow,
+      UserAdminPagination
+    },
+
+    data() {
+      return {
+        list: [],
+        orderBy: "id",
+        loader: null,
+        offset: 0,
+        limit: 3,
+        total: 0
+      };
+    },
+
+    computed: {
+      currentPageNum: ({ limit, offset }) => Math.ceil(offset / limit),
+      paginationItems: ({ total, limit, offset }) =>
+        Array.from({ length: Math.ceil(total / limit) }, (v, i) => ({
+          state: { limit, offset: i * limit }
+        }))
+    },
+
+    helpers: {
+      __,
+      paginationUrl: state => `?${stringify(state)}`
+    },
+
+    methods: {
+      orderBy(event, orderBy) {
+        event.preventDefault();
+        this.set({ orderBy, offset: 0 });
+        const state = { orderBy };
+        window.history.replaceState(
+          state,
+          "",
+          `/admin/users?${stringify(state)}`
+        );
+        this.loadUsers();
+      },
+
+      gotoPage({ offset, limit }) {
+        this.set({ offset, limit });
+        const { orderBy } = this.get();
+        const state = { offset, limit, orderBy };
+        window.history.replaceState(
+          state,
+          "",
+          `/admin/users?${stringify(state)}`
+        );
+        this.loadUsers();
+      },
+
+      loadUsers() {
+        const { offset, limit, orderBy } = this.get();
+        const loader = getJSON(
+          `${BASE_URL}?${stringify({ offset, limit, orderBy })}`,
+          data => {
+            if (data && data.list) {
+              const { total, list } = data;
+              this.set({ list, total });
+            }
+          }
+        );
+        this.set({ loader });
+      }
+    },
+
+    oncreate() {
+      const urlQuery = parse(window.location.search);
+      this.set(urlQuery);
+      this.loadUsers();
+    }
+  };
+</script>
